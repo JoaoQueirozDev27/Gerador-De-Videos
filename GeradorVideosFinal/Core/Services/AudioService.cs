@@ -60,28 +60,28 @@ namespace Services
         /// <exception cref="NotImplementedException"></exception>
         public async Task GenerateTemporaryAudio(string text, string modelPath, string path)
         {
-            //var startInfo = new ProcessStartInfo
-            //{
-            //    FileName = "piper",
-            //    Arguments = $"-m C:\\piper\\pt_BR-faber-medium.onnx -c C:\\piper\\pt_BR-faber-medium.onnx.json -f {path}",
-            //    UseShellExecute = false,
-            //    RedirectStandardInput = true,
-            //    RedirectStandardOutput = false,
-            //    RedirectStandardError = false,
-            //    CreateNoWindow = true
-            //};
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = $"{AppContext.BaseDirectory}\\..\\..\\..\\..\\Assets\\piper\\piper.exe",
+                Arguments = $"-m \"{AppContext.BaseDirectory}\\..\\..\\..\\..\\Assets\\piper\\pt_BR-faber-medium.onnx\" -c \"{AppContext.BaseDirectory}\\..\\..\\..\\..\\Assets\\piper\\pt_BR-faber-medium.onnx.json\" -f {path}",
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = false,
+                RedirectStandardError = false,
+                CreateNoWindow = true
+            };
 
-            //using var process = new Process { StartInfo = startInfo };
+            using var process = new Process { StartInfo = startInfo };
 
-            //process.Start();
+            process.Start();
 
-            //await process.StandardInput.WriteAsync(text);
-            //process.StandardInput.Close();
+            await process.StandardInput.WriteAsync(text);
+            process.StandardInput.Close();
 
-            //await process.WaitForExitAsync();
+            await process.WaitForExitAsync();
 
-            //if (process.ExitCode != 0)
-            //    throw new Exception($"Erro ao gerar áudio");
+            if (process.ExitCode != 0)
+                throw new Exception($"Erro ao gerar áudio");
 
             //KokoroVoiceManager.GetVoices(KokoroLanguage.BrazilianPortuguese, KokoroGender.Male).ForEach(v => Console.WriteLine(v.Name));
 
@@ -91,34 +91,34 @@ namespace Services
 
             //File.WriteAllBytes(path,AudioBytes);
 
-            //KokoroTTS tts = KokoroTTS.LoadModel(); 
-            //KokoroVoice heartVoice = KokoroVoiceManager.GetVoice("af_heart");
-            //SynthesisHandle handle = tts.SpeakFast(text, heartVoice);
-            //handle.OnSpeechStarted = write => Console.WriteLine("Speech started");           
-            //handle.OnSpeechCompleted = write => Console.WriteLine("Speech completed");
-            
-            using KokoroTTS tts = KokoroTTS.LoadModel();
+            ////KokoroTTS tts = KokoroTTS.LoadModel(); 
+            ////KokoroVoice heartVoice = KokoroVoiceManager.GetVoice("af_heart");
+            ////SynthesisHandle handle = tts.SpeakFast(text, heartVoice);
+            ////handle.OnSpeechStarted = write => Console.WriteLine("Speech started");           
+            ////handle.OnSpeechCompleted = write => Console.WriteLine("Speech completed");
 
-            KokoroVoiceManager.LoadVoicesFromPath("C:\\KokoroModel");
+            //using KokoroTTS tts = KokoroTTS.LoadModel();
 
-            foreach (var voice in KokoroVoiceManager.GetVoices(KokoroLanguage.BrazilianPortuguese)) { Debug.WriteLine(voice.Name); }
+            //KokoroVoiceManager.LoadVoicesFromPath("C:\\KokoroModel");
 
-            KokoroVoice? Voice = KokoroVoiceManager.GetVoices(KokoroLanguage.BrazilianPortuguese, KokoroGender.Male)[0];
+            //foreach (var voice in KokoroVoiceManager.GetVoices(KokoroLanguage.BrazilianPortuguese)) { Debug.WriteLine(voice.Name); }
 
-            if (Voice == null)
-                throw new Exception("Voz não encontrada.");
+            //KokoroVoice? Voice = KokoroVoiceManager.GetVoices(KokoroLanguage.BrazilianPortuguese, KokoroGender.Male)[0];
 
-            tts.OnSpeechStarted += (s) => Debug.WriteLine($"Started:   {new string(s.PhonemesToSpeak)}");
-            tts.OnSpeechProgressed += (p) => Debug.WriteLine($"Progress:  {new string(p.SpokenText_BestGuess)}");
-            tts.OnSpeechCompleted += (c) => Debug.WriteLine($"Completed: {new string(c.PhonemesSpoken)}");
-            tts.OnSpeechCanceled += (c) => Debug.WriteLine($"Canceled:  {new string(c.SpokenText_BestGuess)}");
+            //if (Voice == null)
+            //    throw new Exception("Voz não encontrada.");
 
-            KokoroWavSynthesizer wavSynthesizer = new KokoroWavSynthesizer(modelPath);
+            //tts.OnSpeechStarted += (s) => Debug.WriteLine($"Started:   {new string(s.PhonemesToSpeak)}");
+            //tts.OnSpeechProgressed += (p) => Debug.WriteLine($"Progress:  {new string(p.SpokenText_BestGuess)}");
+            //tts.OnSpeechCompleted += (c) => Debug.WriteLine($"Completed: {new string(c.PhonemesSpoken)}");
+            //tts.OnSpeechCanceled += (c) => Debug.WriteLine($"Canceled:  {new string(c.SpokenText_BestGuess)}");
 
-            byte[] audioBytes = await wavSynthesizer.SynthesizeAsync(text, Voice);
-                        
-            using var writer = new WaveFileWriter(path, KokoroPlayback.waveFormat);
-            writer.Write(audioBytes, 0, audioBytes.Length);
+            //KokoroWavSynthesizer wavSynthesizer = new KokoroWavSynthesizer(modelPath);
+
+            //byte[] audioBytes = await wavSynthesizer.SynthesizeAsync(text, Voice);
+
+            //using var writer = new WaveFileWriter(path, KokoroPlayback.waveFormat);
+            //writer.Write(audioBytes, 0, audioBytes.Length);
 
         }
 

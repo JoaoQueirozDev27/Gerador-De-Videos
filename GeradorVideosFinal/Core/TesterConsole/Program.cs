@@ -56,31 +56,20 @@ namespace Presentation {
                 "Quando você tenta ser produtivo e o universo conspira por um cochilo"
             };
 
-            CreateDirectoryIfNotExists("C:\\Users\\Administrador\\Desktop\\Videos");
+            CreateDirectoryIfNotExists($"{AppContext.BaseDirectory}\\..\\..\\..\\Videos");
 
-            #region Processing Video in Paralell
-
-            List<string[]> conjuntos = temasEngracados.Chunk(1).ToList();
-
-            //Directory.Delete("C:\\Users\\Administrador\\Desktop\\Videos",true);
-
-            foreach (string[] conjunto in conjuntos)
+            
+            foreach (string tema in temasEngracados.ToList())
             {
-                List<Task> tasks = new List<Task>();
-
-                foreach (var tema in conjunto)
-                {
-                    tasks.Add(ProcessVideo(tema));
-                };
-                await Task.WhenAll(tasks);
+                await ProcessVideo(tema);
+                break;
             };
-            #endregion
         }
         public static async Task ProcessVideo(string tema)
         {
-            //Log($"\r\n[yellow]Processando o tema:[/] [green]{tema}[/]");
+            Log($"\r\n[yellow]Processando o tema:[/] [green]{tema}[/]");
             
-            string path = $@"C:\Users\Administrador\Desktop\Videos\{tema.Replace(" ", "_").Replace(":", "")}";
+            string path = $@"{AppContext.BaseDirectory}\..\..\..\Videos\{tema.Replace(" ", "_").Replace(":", "")}";
 
             CreateDirectoryIfNotExists(path);
 
@@ -104,16 +93,7 @@ namespace Presentation {
 
             Log("\r\n\r\n[green]Conteúdo resumido salvo com sucesso![/]");
 
-            /* Gera audio com ElevenLabs */
-
-            //byte[] audioBytes = await GenerateAudio(responseContent.Replace("~", ""));
-            //File.WriteAllBytes($"{path}\\GeneratedAudio.mp3", audioBytes);
-
-            /*Gera local,apenas para testes*/
-
-            //ARRUMAR ESSA LINHA DO AUDIO
-
-            await audioService.GenerateTemporaryAudio(ContentToSave, "C:\\KokoroModel\\kokoro.onnx", path + "\\GeneratedAudio.wav");
+            await audioService.GenerateTemporaryAudio(ContentToSave, $"{AppContext.BaseDirectory}\\..\\..\\..\\..\\Assets\\kokoro.onnx", path + "\\GeneratedAudio.wav");
 
             Log("\r\n[green]Áudio gerado e salvo com sucesso![/]");
 
@@ -137,7 +117,7 @@ namespace Presentation {
             await videoService
                 .GenerateVideo(@$"-y -i {path + "\\GeneratedAudio.wav"} -filter:a loudnorm -codec:a libmp3lame -qscale:a 2 {path + "\\GeneratedAudio.mp3"}");
 
-            string arguments = @$"-y -i {"C:\\Users\\Administrador\\Desktop\\Videos\\videoplayback.mp4"} -i {path + "\\GeneratedAudio.mp3"} -c:v libx264 -c:a aac -shortest {path + "\\FinalVideo.mp4"}".Replace("\r", "").Replace("\n", "");
+            string arguments = $"-y -i \"{AppContext.BaseDirectory}\\..\\..\\..\\..\\Assets\\videoplayback.mp4\" -i \"{path}\\GeneratedAudio.mp3\" -c:v copy -c:a aac -shortest \"{path}\\FinalVideo.mp4\"";
 
             await videoService.GenerateVideo(arguments);
             Log("\r\n[green]Vídeo gerado e salvo com sucesso![/]");

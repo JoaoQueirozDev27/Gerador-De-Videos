@@ -1,0 +1,3 @@
+[2025-07-05 10:14:29.953] [piper] [info] Loaded voice in 0.3953451 second(s)
+[2025-07-05 10:14:29.976] [piper] [info] Initialized piper
+^C

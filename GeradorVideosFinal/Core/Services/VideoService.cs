@@ -29,18 +29,11 @@ namespace Services
             processo.ErrorDataReceived += (s, e) =>
             {
                 if (!string.IsNullOrEmpty(e.Data))
-                    Console.WriteLine("[ffmpeg err] " + e.Data);
-            };
-
-            processo.OutputDataReceived += (s, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                    Console.WriteLine("[ffmpeg out] " + e.Data);
+                    Console.WriteLine("[ffmpeg log] " + e.Data);
             };
 
             processo.Start();
             processo.BeginErrorReadLine();
-            processo.BeginOutputReadLine();
 
             await processo.WaitForExitAsync();
 
