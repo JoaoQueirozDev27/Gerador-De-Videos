@@ -9,6 +9,6 @@ namespace Core.Domain.Entities
 {
     public class Model : Base
     {
-        public string Content { get; set; }
+        public string JsonContent { get; set; }
     }
 }

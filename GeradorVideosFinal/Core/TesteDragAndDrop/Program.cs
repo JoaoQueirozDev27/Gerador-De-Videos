@@ -1,16 +1,27 @@
-﻿using Application.interfaces;
-using Application.UseCases.Audio.CalcSrtDuraton;
-using Application.UseCases.Audio.TextToSpeech;
-using Application.UseCases.IA.GetSummarizedSiteContentCommand;
-using Application.UseCases.Imagem.GenerateImage;
+﻿using System;
+using System.Collections.Generic;
 using Services;
-using Services.Factories;
+using Application.interfaces;
+using Application.UseCases;
+using Core.Domain.Entities;
+using static System.Net.Mime.MediaTypeNames;
+using Application.UseCases.IA.GetSummarizedSiteContentCommand;
+using Application.UseCases.Audio.TextToSpeech;
+using Application.UseCases.Imagem.GenerateImage;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Application.UseCases.IA.CreatePromptToImage;
+using Application.UseCases.Audio.CalcSrtDuraton;
 using Spectre.Console;
+using Spectre.Console.Rendering;
+using Services.Factories;
+using System.Drawing;
 
 namespace Presentation
 {
     class Program
     {
+
         static IAiService aiService = new AiService();
         static IAudioService audioService = new AudioService();
         static IVideoService videoService = new VideoService();
@@ -20,7 +31,7 @@ namespace Presentation
             Console.InputEncoding = System.Text.Encoding.UTF8;
             Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-            AnsiConsole.Write(new FigletText("Video Creator").Centered().Color(Color.Green));
+            AnsiConsole.Write(new FigletText("Video Creator").Centered().Color(Spectre.Console.Color.Green));
 
             Log("[yellow]Iniciando o processo de criação de vídeos...[/]");
 
@@ -95,6 +106,15 @@ namespace Presentation
             File.WriteAllText($"{path}\\SummarizedContent.txt", ContentToSave.Replace("~", " "));
 
             Log("\r\n\r\n[green]Conteúdo resumido salvo com sucesso![/]");
+
+            /* Gera audio com ElevenLabs */
+
+            //byte[] audioBytes = await GenerateAudio(responseContent.Replace("~", ""));
+            //File.WriteAllBytes($"{path}\\GeneratedAudio.mp3", audioBytes);
+
+            /*Gera local,apenas para testes*/
+
+            //ARRUMAR ESSA LINHA DO AUDIO
 
             await audioService.GenerateTemporaryAudio(ContentToSave, path + "\\GeneratedAudio.wav");
 
@@ -210,4 +230,5 @@ namespace Presentation
         //}
     }
 }
+
 

@@ -9,6 +9,7 @@ namespace Core.Domain.Entities
 {
     public class Video : Base
     {
+
         public string Description { get; set; }
         public TimeSpan Duration { get; set; }
         public DateTime UploadDate { get; set; }

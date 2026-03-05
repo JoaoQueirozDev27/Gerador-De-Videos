@@ -10,6 +10,6 @@ namespace Application.interfaces
     {
         public Task<byte[]> GenerateFinalAudio(string text);
         public double GetAudioDuration(string FilePath);
-        public Task GenerateTemporaryAudio(string text,string modelPath,string path);
+        public Task GenerateTemporaryAudio(string text,string path);
     }
 }

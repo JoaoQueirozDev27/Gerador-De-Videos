@@ -11,18 +11,18 @@ namespace Services.Factories
 {
     public class YoutubeManagerFactory
     {
-        public static YoutubeManager CreateYoutubeManagerInstance()
+        public static async Task<YoutubeManager> CreateYoutubeManagerInstance()
         {
             UserCredential userCredential;
 
             using (var stream = new FileStream("C:\\Users\\Administrador\\Desktop\\GeradorVideosFinal\\Core\\Services\\client_secret_104744707615-tac6povnpknvr1mfh5a7q81mild4bceb.apps.googleusercontent.com.json", FileMode.Open, FileAccess.Read))
             {
-                userCredential = GoogleWebAuthorizationBroker.AuthorizeAsync(
+                userCredential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
                     GoogleClientSecrets.FromStream(stream).Secrets,
                     new[] { "https://www.googleapis.com/auth/youtube.upload" },
                     "user",
                     CancellationToken.None
-                ).Result;
+                );
             }
 
             return new YoutubeManager(userCredential);

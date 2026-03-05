@@ -17,7 +17,7 @@ namespace Application.UseCases.Audio.CalcSrtDuraton
 
         public async Task<double> Handle(CalcSrtDurationCommand command)
         {
-            await _audioService.GenerateTemporaryAudio(command.text,command.modelPath, command.path);
+            await _audioService.GenerateTemporaryAudio(command.text, command.path);
             double duration = _audioService.GetAudioDuration(command.path);
 
             return duration;
