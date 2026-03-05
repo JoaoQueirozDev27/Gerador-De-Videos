@@ -7,6 +7,9 @@ using System.Xml;
 using HtmlAgilityPack;
 using Core.Domain.Entities;
 using Domain.Entities;
+using PexelsDotNetSDK.Api;
+using PexelsDotNetSDK.Models;
+using System.Text.Json;
 
 namespace Services
 {
@@ -115,6 +118,59 @@ namespace Services
 
                 return AllNews;
             }
-        
+
+
+            public async Task<List<string>> GetUrlImages(string request, bool Context)
+            {
+                List<string> Urlimages = new List<string>();
+
+                if (Context == false)
+                {
+                    var pexelsClient = new PexelsClient("lTaC0XiQSQbmxYf4DGSF77sfVFcKlZJCg9BKmj0dpkyuofQRedTbCIva");
+                    PhotoPage result = await pexelsClient.SearchPhotosAsync(request);
+
+                    result.photos.ToList().ForEach(photo =>
+                    {
+                        string url = photo.source.portrait;
+                        Urlimages.Add(url);
+                    });
+                }
+
+                else
+                {
+                    HttpClient httpClient = new HttpClient();
+
+                    var response = await httpClient.GetAsync($"https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrsearch={Uri.EscapeDataString(request)}&gsrnamespace=6&gsrlimit=20&prop=imageinfo&iiprop=url");
+
+                    string responseBody = await response.Content.ReadAsStringAsync();
+
+                    var jsonResponse = JsonDocument.Parse(responseBody);
+
+                    if (jsonResponse.RootElement.TryGetProperty("query", out JsonElement queryElement) &&
+                            queryElement.TryGetProperty("pages", out JsonElement pagesElement))
+                    {
+                        foreach (JsonProperty page in pagesElement.EnumerateObject())
+                        {
+                            if (page.Value.TryGetProperty("imageinfo", out JsonElement imageInfoElement))
+                            {
+                                foreach (JsonElement imageInfo in imageInfoElement.EnumerateArray())
+                                {
+                                    if (imageInfo.TryGetProperty("url", out JsonElement urlElement))
+                                    {
+                                        string imageUrl = urlElement.GetString();
+                                        Urlimages.Add(imageUrl);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return Urlimages;
+            }        
+
+            public void DownLoadImage(string url, string path)
+            {
+            
+            }
     }
 }

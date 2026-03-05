@@ -21,11 +21,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TesterConsole", "TesterCons
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "G1Videos", "G1Videos\G1Videos.csproj", "{F30E0B0E-BF32-4310-ABCE-2043CD70102B}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Configs", "Configs", "{8F90F185-2CC8-458F-9571-9C7AA061F13C}"
-	ProjectSection(SolutionItems) = preProject
-		..\..\..\..\..\KokoroModel\kokoro.onnx = ..\..\..\..\..\KokoroModel\kokoro.onnx
-		..\..\..\..\..\KokoroModel\voices-v1.0.bin = ..\..\..\..\..\KokoroModel\voices-v1.0.bin
-	EndProjectSection
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TesteDragAndDrop", "TesteDragAndDrop\TesteDragAndDrop.csproj", "{9969B32E-206C-4658-897C-5F284AE70337}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Teste2Abstração", "Teste2Abstração\Teste2Abstração.csproj", "{FC127A8F-CEEC-4698-87AD-E0DBD06AB20A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -57,6 +55,14 @@ Global
 		{F30E0B0E-BF32-4310-ABCE-2043CD70102B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F30E0B0E-BF32-4310-ABCE-2043CD70102B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F30E0B0E-BF32-4310-ABCE-2043CD70102B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9969B32E-206C-4658-897C-5F284AE70337}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9969B32E-206C-4658-897C-5F284AE70337}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9969B32E-206C-4658-897C-5F284AE70337}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9969B32E-206C-4658-897C-5F284AE70337}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC127A8F-CEEC-4698-87AD-E0DBD06AB20A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC127A8F-CEEC-4698-87AD-E0DBD06AB20A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC127A8F-CEEC-4698-87AD-E0DBD06AB20A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC127A8F-CEEC-4698-87AD-E0DBD06AB20A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -68,6 +74,7 @@ Global
 		{02657576-570B-45F0-98DA-B61507B12A7C} = {308D9B7E-9499-45A6-8FB7-969EF39A67B0}
 		{B35EE9E6-357C-485A-9D00-FF3A7383BF8E} = {CCB87E1D-5BA4-4A49-9680-734AAD7F112C}
 		{F30E0B0E-BF32-4310-ABCE-2043CD70102B} = {CCB87E1D-5BA4-4A49-9680-734AAD7F112C}
-		{8F90F185-2CC8-458F-9571-9C7AA061F13C} = {308D9B7E-9499-45A6-8FB7-969EF39A67B0}
+		{9969B32E-206C-4658-897C-5F284AE70337} = {CCB87E1D-5BA4-4A49-9680-734AAD7F112C}
+		{FC127A8F-CEEC-4698-87AD-E0DBD06AB20A} = {CCB87E1D-5BA4-4A49-9680-734AAD7F112C}
 	EndGlobalSection
 EndGlobal

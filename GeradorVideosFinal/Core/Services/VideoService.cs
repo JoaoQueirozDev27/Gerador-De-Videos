@@ -1,50 +1,233 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
+using System.ComponentModel;
+using System.IO;
 using System.Threading.Tasks;
-using Application.interfaces;
-
+using FFMpegCore;
+using FFMpegCore.Enums;
 
 namespace Services
 {
-    public class VideoService : IVideoService
+    public class VideoService
     {
-        public async Task GenerateVideo(string arguments)
+        public VideoService()
         {
-            var startInfo = new ProcessStartInfo
+            GlobalFFOptions.Configure(opt =>
             {
-                FileName = "ffmpeg",
-                Arguments = arguments,
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var processo = new Process { StartInfo = startInfo };
-
-            // captura saída assíncrona sem travar o buffer
-            processo.ErrorDataReceived += (s, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                    Console.WriteLine("[ffmpeg log] " + e.Data);
-            };
-
-            processo.Start();
-            processo.BeginErrorReadLine();
-
-            await processo.WaitForExitAsync();
-
-            if (processo.ExitCode != 0)
-            {
-                throw new Exception($"FFmpeg falhou com código {processo.ExitCode}.");
-            }
-
-            Console.WriteLine("FFmpeg terminou com sucesso!");
+                opt.BinaryFolder = @"C:\ffmpeg\bin";
+                opt.TemporaryFilesFolder = Path.Combine(Path.GetTempPath(), "ffmpeg");
+            });
         }
 
+        public double GetDurationMs(string filePath)
+        {
+            var info = FFProbe.Analyse(filePath);
+            return info.Duration.TotalMilliseconds;
+        }
 
+        public async Task ImageWithAudioAsync(byte[] imageBytes, string audioPath, string outputPath)
+        {
+            string imgTemp = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".jpg");
+            await File.WriteAllBytesAsync(imgTemp, imageBytes);
+
+            try
+            {
+                await FFMpegArguments
+                    .FromFileInput(imgTemp)
+                    .AddFileInput(audioPath)
+                    .OutputToFile(outputPath, true, o => o
+                        .WithVideoCodec(VideoCodec.LibX264)
+                        .WithAudioCodec(AudioCodec.Aac)
+                        .ForceFormat("mp4")
+                        .WithCustomArgument("-shortest"))
+                    .ProcessAsynchronously();
+
+                //return outputPath;
+            }
+            catch
+            {
+                throw new Exception("Erro ao criar vídeo a partir da imagem e áudio.");
+            }
+            finally
+            {
+                if (File.Exists(imgTemp))
+                    File.Delete(imgTemp);
+            }
+        }
+
+        public async Task ImageAsync(byte[] imageBytes, double duration, string outputPath)
+        {
+            string imgTemp = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".jpeg");
+            await File.WriteAllBytesAsync(imgTemp, imageBytes);
+
+            try
+            {
+                await FFMpegArguments
+                    .FromFileInput(imgTemp, false, options => options
+                    .WithCustomArgument("-loop 1"))
+                    .OutputToFile(outputPath, overwrite: true, options => options
+                    .WithVideoCodec(VideoCodec.LibX264)
+                    .ForceFormat("mp4")
+                    .WithCustomArgument("-preset ultrafast")      
+                    .WithCustomArgument("-crf 28")               
+                    .WithCustomArgument("-tune stillimage")      
+                    .WithCustomArgument("-vf scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p")
+                    .WithCustomArgument("-pix_fmt yuv420p")
+                    .WithCustomArgument("-r 1")                  
+                    .WithDuration(TimeSpan.FromSeconds(duration)))
+                    .NotifyOnProgress(progress => {
+                        Console.WriteLine($"Renderizando... {progress.Milliseconds}%");
+                    })
+                    .NotifyOnOutput(output => {    
+                        Console.WriteLine($"{output.Trim()}");
+                    })
+                    .ProcessAsynchronously();
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Erro ao criar vídeo a partir da imagem.", ex);
+            }
+            finally
+            {
+                if (File.Exists(imgTemp))
+                    File.Delete(imgTemp);
+            }
+        }
+        public async Task VideoWithDuration(byte[] VideoBytes, double duration, string outputPath)
+        {
+            string imgTemp = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mp4");
+            await File.WriteAllBytesAsync(imgTemp, VideoBytes);
+
+            try
+            {
+
+                await FFMpegArguments
+                    .FromFileInput(imgTemp)
+                    .OutputToFile(outputPath, true, o => o
+                        .WithVideoCodec(VideoCodec.LibX264)
+                        .ForceFormat("mp4")
+                        .WithCustomArgument("-shortest")
+                        .WithDuration(TimeSpan.FromMilliseconds(duration)))
+                    .ProcessAsynchronously();
+
+                //return outputPath;
+            }
+            catch
+            {
+                throw new Exception("Erro ao criar vídeo a partir da imagem e áudio.");
+            }
+            finally
+            {
+                if (File.Exists(imgTemp))
+                    File.Delete(imgTemp);
+            }
+        }
+
+        public async Task VideoWithoutDuration(byte[] VideoBytes, string outputPath)
+        {
+            string imgTemp = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mp4");
+            await File.WriteAllBytesAsync(imgTemp, VideoBytes);
+
+
+            try
+            {
+                await FFMpegArguments
+                    .FromFileInput(imgTemp)
+                    .OutputToFile(outputPath, true, o => o
+                        .WithVideoCodec(VideoCodec.LibX264)
+                        .ForceFormat("mp4")
+                        .WithCustomArgument("-shortest"))
+                    .ProcessAsynchronously();
+
+                //return outputPath;
+            }
+            catch
+            {
+                throw new Exception("Erro ao criar vídeo a partir da imagem e áudio.");
+            }
+            finally
+            {
+                if (File.Exists(imgTemp))
+                    File.Delete(imgTemp);
+            }
+        }
+
+        public async Task ConcatVideosAsync(string[] inputs, string output)
+        {
+            await FFMpegArguments
+                .FromConcatInput(inputs)
+                .OutputToFile(output, true, o => o.WithCopyCodec())
+                .ProcessAsynchronously();
+        }
+
+        public async Task AddMainAudioAsync(string video, string audio, string output)
+        {
+            await FFMpegArguments
+                .FromFileInput(video)
+                .AddFileInput(audio)
+                .OutputToFile(output, true, o => o
+                    .WithVideoCodec(VideoCodec.LibX264)
+                    .WithAudioCodec(AudioCodec.Aac)
+                    .WithCustomArgument("-map 0:v:0 -map 1:a:0 -shortest"))
+                .ProcessAsynchronously();
+        }
+
+        public async Task<string> OverlayLayerAsync(string baseVideo, string overlayVideo, double startSec, string output)
+        {
+            double duration = FFProbe.Analyse(overlayVideo).Duration.TotalSeconds;
+
+            string filter =
+                $"[1:v]setpts=PTS+{startSec}/TB[ov];" +
+                $"[0:v][ov]overlay=0:0:enable='between(t,{startSec},{startSec + duration})'";
+
+            await FFMpegArguments
+                .FromFileInput(baseVideo)
+                .AddFileInput(overlayVideo)
+                .OutputToFile(output, true, o => o
+                    .WithVideoCodec(VideoCodec.LibX264)
+                    .WithCustomArgument($"-filter_complex \"{filter}\""))
+                .ProcessAsynchronously();
+
+            return output;
+        }
+
+        public async Task<string> OverlayLayerWithDurationAsync(string baseVideo, string overlayVideo, double startSec,double duration, string output)
+        {
+            //double duration = FFProbe.Analyse(overlayVideo).Duration.TotalSeconds;
+
+            string filter =
+                $"[1:v]setpts=PTS+{startSec}/TB[ov];" +
+                $"[0:v][ov]overlay=0:0:enable='between(t,{startSec},{startSec + duration})'";
+
+            await FFMpegArguments
+                .FromFileInput(baseVideo)
+                .AddFileInput(overlayVideo)
+                .OutputToFile(output, true, o => o
+                    .WithVideoCodec(VideoCodec.LibX264)
+                    .WithCustomArgument($"-filter_complex \"{filter}\""))
+                .ProcessAsynchronously();
+
+            return output;
+        }
+
+        // EXTRAIR AUDIO
+        public async Task ExtractAudioAsync(string video, string wavOut)
+        {
+            await FFMpegArguments
+                .FromFileInput(video)
+                .OutputToFile(wavOut, true, o => o
+                    .WithAudioCodec(AudioCodec.Aac)
+                    .DisableChannel(Channel.Video))
+                .ProcessAsynchronously();
+        }
+
+        public void CleanupTemp(string path)
+        {
+            foreach (var f in Directory.GetFiles(path, "temp*.mp4"))
+            {
+                try { File.Delete(f); }
+                catch { }
+            }
+        }
     }
 }

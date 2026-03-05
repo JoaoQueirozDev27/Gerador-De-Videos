@@ -17,8 +17,8 @@ namespace Application.UseCases.IA.CreatePromptToImage
 
         public async Task<string> Handle(CreatePromptToImageCommand command)
         {
-            string prompt = await _aiService.CreatePromptToImage(command.content);
-            return prompt;
+            //string prompt = await _aiService.TransformText(command.content);
+            return "";
         }
     }
 }

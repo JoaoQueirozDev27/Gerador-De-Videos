@@ -9,13 +9,16 @@
 
   <ItemGroup>
     <PackageReference Include="ElevenLabs" Version="0.9.0" />
+    <PackageReference Include="FFMpegCore" Version="5.4.0" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.70.0.3847" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageReference Include="KokoroSharp" Version="0.6.2" />
     <PackageReference Include="KokoroSharp.CPU" Version="0.6.2" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.0" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.22.0" />
+    <PackageReference Include="PexelsDotNetSDK" Version="1.0.11" />
     <PackageReference Include="RestSharp" Version="112.1.0" />
+    <PackageReference Include="Telegram.Bot" Version="22.7.6" />
   </ItemGroup>
 
   <ItemGroup>
