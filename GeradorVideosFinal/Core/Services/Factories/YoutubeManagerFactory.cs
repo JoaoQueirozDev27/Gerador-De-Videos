@@ -9,7 +9,7 @@ using Google.Apis.Auth.OAuth2;
 
 namespace Services.Factories
 {
-    public class YoutubeManagerFactory
+    public class YoutubeManagerFactory : IMediaManager
     {
         public static async Task<YoutubeManager> CreateYoutubeManagerInstance()
         {
@@ -26,6 +26,16 @@ namespace Services.Factories
             }
 
             return new YoutubeManager(userCredential);
+        }
+
+        public string DeleteMedia()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task UploadMedia(string title, string description, List<string> tags, byte[] Videobytes)
+        {
+            throw new NotImplementedException();
         }
     }
 }

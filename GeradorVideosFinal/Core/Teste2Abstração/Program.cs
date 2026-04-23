@@ -31,8 +31,6 @@ namespace Presentation
 
         static async Task Main(string[] args)
         {
-            //mediaManager = await YoutubeManagerFactory.CreateYoutubeManagerInstance();
-
             string BasePath = "C:\\Users\\Administrador\\Desktop\\Modelos";
 
             AnsiConsole.MarkupLine("[yellow]Este é seu [/] [bold yellow]Gerador de vídeos[/]");
@@ -349,8 +347,6 @@ namespace Presentation
                     .AddChoices(new[] { "Miliseconds", "Inner", "FromAudio"}));
 
                     Scene.Duration = duration == "Miliseconds" ? await AnsiConsole.Console.AskAsync<string>("Digite a duração em milissegundos: ") : duration;
-
-                    //Scene.Text = await AnsiConsole.Console.AskAsync<string>("Digite o texto da cena(use ~ em volta do texto que nao deve virar audio): ");
 
                     Scene.Subtitles = await AnsiConsole.Console.ConfirmAsync("Deseja ativar legendas?");
 
