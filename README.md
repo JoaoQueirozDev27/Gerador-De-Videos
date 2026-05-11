@@ -103,7 +103,7 @@ Tema pré-definido → Gerar mapa de conteúdo (IA) → Gerar áudio (TTS) → P
 
 ---
 
-### 3️⃣ **Teste2Abstração** - Interface Interativa Flexível ⭐
+### 3️⃣ **Teste2Abstração** - Interface Interativa Flexível(Não finalizado) ⭐
 **Localização:** `GeradorVideosFinal/Core/Teste2Abstração/`
 
 **Propósito:** Controle total com menu interativo para criar e renderizar modelos de vídeo.
