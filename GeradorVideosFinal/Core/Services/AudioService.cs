@@ -61,7 +61,8 @@ namespace Services
 
         /// 
 
-        public async Task GenerateTemporaryAudio(string text, string path) {
+        public async Task GenerateTemporaryAudio(string text, string path)
+        {
             var startInfo = new ProcessStartInfo
             {
                 FileName = "piper",
@@ -81,6 +82,7 @@ namespace Services
             process.StandardInput.Close();
 
             await process.WaitForExitAsync();
+        }
 
         public async Task GenerateTemporaryAudio(string text, string modelPath, string path)
         {

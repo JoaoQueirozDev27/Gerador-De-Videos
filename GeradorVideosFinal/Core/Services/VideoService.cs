@@ -61,27 +61,24 @@ namespace Services
 
             try
             {
+                // Monta o comando FFmpeg diretamente, sem -loop 1
+                // -framerate 1/duration = 1 frame que dura 'duration' segundos inteiros
+                // Isso é instantâneo: só 1 frame é codificado
+                string durationArg = duration.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+
                 await FFMpegArguments
                     .FromFileInput(imgTemp, false, options => options
-                    .WithCustomArgument("-loop 1"))
+                        .WithCustomArgument($"-framerate 1/{durationArg}"))
                     .OutputToFile(outputPath, overwrite: true, options => options
-                    .WithVideoCodec(VideoCodec.LibX264)
-                    .ForceFormat("mp4")
-                    .WithCustomArgument("-preset ultrafast")      
-                    .WithCustomArgument("-crf 28")               
-                    .WithCustomArgument("-tune stillimage")      
-                    .WithCustomArgument("-vf scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p")
-                    .WithCustomArgument("-pix_fmt yuv420p")
-                    .WithCustomArgument("-r 1")                  
-                    .WithDuration(TimeSpan.FromSeconds(duration)))
-                    .NotifyOnProgress(progress => {
-                        Console.WriteLine($"Renderizando... {progress.Milliseconds}%");
-                    })
-                    .NotifyOnOutput(output => {    
-                        Console.WriteLine($"{output.Trim()}");
-                    })
+                        .WithVideoCodec(VideoCodec.LibX264)
+                        .ForceFormat("mp4")
+                        .WithCustomArgument("-preset ultrafast")
+                        .WithCustomArgument("-tune stillimage")
+                        .WithCustomArgument("-crf 28")
+                        .WithCustomArgument("-vf scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p")
+                        .WithCustomArgument("-pix_fmt yuv420p")
+                        .WithCustomArgument("-frames:v 1"))  // codifica EXATAMENTE 1 frame
                     .ProcessAsynchronously();
-
             }
             catch (Exception ex)
             {
@@ -93,6 +90,7 @@ namespace Services
                     File.Delete(imgTemp);
             }
         }
+
         public async Task VideoWithDuration(byte[] VideoBytes, double duration, string outputPath)
         {
             string imgTemp = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".mp4");

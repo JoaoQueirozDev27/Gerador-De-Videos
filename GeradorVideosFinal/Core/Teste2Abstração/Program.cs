@@ -84,6 +84,7 @@ namespace Presentation
                     AnsiConsole.MarkupLine("Tipo: " + scene.Type);
                     AnsiConsole.MarkupLine("Duração: " + scene.Duration);
                     AnsiConsole.MarkupLine("Legendas: " + (scene.Subtitles == true ? "Ativado" : "Desativado"));
+                    
                     AnsiConsole.MarkupLine("Prompt: " + (scene.Prompt != null ? scene.Prompt : "Nenhum"));
 
                     List<int> layersIds = new List<int>();
@@ -91,6 +92,7 @@ namespace Presentation
 
                     switch (scene.Type)
                     {
+                        
                         case "Image":
 
                             byte[] imageBytes = await GetImageFromUser();
