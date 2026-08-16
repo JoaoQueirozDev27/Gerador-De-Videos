@@ -16,7 +16,7 @@ namespace Domain.Entities
         public string Type { get; set; } // Audio, Image
 
         [JsonPropertyName("mix")]
-        public int? Mix { get; set; } // 1: toca junto com o main, null: pausa o main
+        public int Mix { get; set; } = 1; // 1: toca junto com o main, null: pausa o main
 
         [JsonPropertyName("duration")]
         public string Duration { get; set; }

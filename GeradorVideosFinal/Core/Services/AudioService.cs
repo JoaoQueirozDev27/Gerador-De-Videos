@@ -65,12 +65,13 @@ namespace Services
         {
             var startInfo = new ProcessStartInfo
             {
-                FileName = "piper",
-                Arguments = $"-m C:\\piper\\pt_BR-faber-medium.onnx -c C:\\piper\\pt_BR-faber-medium.onnx.json -f {path}",
+                FileName = @"C:\piper\piper.exe", // caminho completo, não depende do PATH
+                Arguments = "-m C:\\piper\\pt_BR-faber-medium.onnx -c C:\\piper\\pt_BR-faber-medium.onnx.json -f " + $"\"{path}\"",
+                WorkingDirectory = @"C:\piper", // importante: o piper às vezes procura arquivos auxiliares (espeak-ng-data) relativos a ele mesmo
                 UseShellExecute = false,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = false,
-                RedirectStandardError = false,
+                RedirectStandardError = true, // sugiro true - ver "importante" abaixo
                 CreateNoWindow = true
             };
 

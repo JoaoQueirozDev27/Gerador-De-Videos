@@ -21,6 +21,9 @@ namespace Domain.Entities
         [JsonPropertyName("text")]
         public string Text { get; set; }
 
+        [JsonPropertyName("contentKey")]
+        public string? ContentKey { get; set; }
+
         [JsonPropertyName("subtitles")]
         public bool Subtitles { get; set; }
 

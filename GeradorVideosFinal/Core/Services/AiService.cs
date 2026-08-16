@@ -11,7 +11,7 @@ namespace Services
         
         public AiService()
         {
-            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "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");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "Coloque a ApiKey do groq aqui");
         }
 
         public async Task<string> SendPrompt(string prompt)
