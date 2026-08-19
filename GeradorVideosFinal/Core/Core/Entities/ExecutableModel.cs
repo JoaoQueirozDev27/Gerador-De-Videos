@@ -9,10 +9,9 @@ namespace Domain.Entities
         public Dictionary<(int? globalId,int? sceneId, int? layerId), IContentSource?> contentSources
             = new Dictionary<(int? globalId,int? sceneId, int? layerId), IContentSource?>();
 
-        public ExecutableModel(VideoProject videoProject, IContentSource origin, object obj)
+        public ExecutableModel(VideoProject videoProject)
         {
             project = videoProject;
-            this.origin = origin.getContent(obj);
         }
     }
 }

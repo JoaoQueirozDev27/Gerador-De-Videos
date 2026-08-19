@@ -9,6 +9,6 @@ namespace Domain.Interfaces
 {
     public interface IContentSource
     {
-        public List<Content> getContent(object request);
+        public Task<List<Content>> getContent(object request);
     }
 }
