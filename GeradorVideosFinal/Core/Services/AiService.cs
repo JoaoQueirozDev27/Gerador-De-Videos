@@ -40,28 +40,6 @@ namespace Services
             return responseContent;
         }
 
-        public async Task<string> TransformText(string prompt, string content)
-        {
-            var fullPrompt = $"{prompt} + {content}";
-            return await SendPrompt(fullPrompt);
-        }
 
-        public async Task<string> ScrapeWithAI(string url)
-        {
-            var client  = new HttpClient();
-            var request = new HttpRequestMessage(HttpMethod.Post, "https://scrape.serper.dev");
-            request.Headers.Add("X-API-KEY", "2c7445a0d2969c203dd14937df027ed1e1ed2464");
-            var content = new StringContent($"{{\"url\":\"{url}\"}}", Encoding.UTF8, "application/json");
-
-            request.Content = content;
-            var response = await client.SendAsync(request);
-            string responseJson = await response.Content.ReadAsStringAsync();
-            response.EnsureSuccessStatusCode();
-
-            //var jsonDoc = JsonDocument.Parse(responseJson);
-            //responseJson = jsonDoc.RootElement.GetProperty("content").GetString();
-
-            return await response.Content.ReadAsStringAsync();
-        }
     }
 }
