@@ -12,20 +12,25 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace Services.ContentSources.RssContentSource
 {
-    public class G1RssContentSource : IContentSource
+    public class G1RssContentSource : IContentSource<RssContentSourceRequest>
     {
-        public async Task<List<Content>> getContent(object request)
+        public string Name => "RSS de notícias do G1";
+
+        public Type RequestType => typeof(RssContentSourceRequest);
+
+        public Type ContentType => typeof(Content);
+
+        public async Task<List<IContent>> getContent(RssContentSourceRequest request)
         {
             if(request is RssContentSourceRequest)
             {
-
-                using var http = new HttpClient();
+                using HttpClient http = new HttpClient();
 
                 string xml = await http.GetStringAsync((request as RssContentSourceRequest).url);
 
                 XDocument doc = XDocument.Parse(xml);
 
-                List<Content> contents = new List<Content>();
+                List<IContent> contents = new List<IContent>();
 
                 int count = 1;
                 foreach (var item in doc.Descendants("item"))
@@ -36,7 +41,7 @@ namespace Services.ContentSources.RssContentSource
 
                     descricao = System.Net.WebUtility.HtmlDecode(descricao);
 
-                    contents.Add(new Content { Id = count, Title = titulo, result = descricao });
+                    contents.Add(new G1RssContentSourceResponse { Id = count, Title = titulo, result = descricao });
                     count++;
 
                 }

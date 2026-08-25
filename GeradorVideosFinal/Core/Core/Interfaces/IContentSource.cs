@@ -9,6 +9,14 @@ namespace Domain.Interfaces
 {
     public interface IContentSource
     {
-        public Task<List<Content>> getContent(object request);
+        string Name { get; }
+        Type RequestType { get; }
+        Type ContentType { get; }
+        Task<List<IContent>> GetContent(object request);
+    }
+
+    public interface IContentSource<TRequest> : IContentSource
+    {
+        Task<List<IContent>> GetContent(TRequest request);
     }
 }

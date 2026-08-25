@@ -13,6 +13,7 @@ namespace Services.ContentSources.GoogleImageContent
 {
     public class GoogleImageContentSource : IContentSource
     {
+        public string Name => "Google Images";
         public async Task<List<Content>> getContent(object request)
         {
             if (request is GoogleImageContentRequest)

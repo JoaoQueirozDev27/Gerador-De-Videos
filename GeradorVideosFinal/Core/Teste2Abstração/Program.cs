@@ -9,6 +9,12 @@ using NAudio.Utils;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Reflection.Emit;
+using Domain.Interfaces;
+using Services.ContentSources.AiContentSource;
+using Services.ContentSources.GoogleImageContent;
+using Services.ContentSources.RssContentSource;
+using ElevenLabs;
+using Domain.ValueObjects;
 
 namespace Presentation
 {
@@ -37,7 +43,7 @@ namespace Presentation
             AnsiConsole.MarkupLine("[yellow]Este é seu [/] [bold yellow]Gerador de vídeos[/]");
             string option = await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
             .Title("Selecione uma das opções:")
-            .AddChoices(new[] { "Renderizar um modelo estático(ME)", "Criar um modelo estático(MD)","Sair"}));
+            .AddChoices(new[] { "Renderizar um modelo estático(ME)", "Criar um modelo estático(MD)", "Sair" }));
 
             bool sair = false;
 
@@ -444,11 +450,72 @@ namespace Presentation
                         break;
 
                     case "Criar um modelo dinâmico(MD)":
-                        sair = true;
-                        break;
+                        models = Directory.GetFiles(BasePath, "*.json");
 
+                        modelSelected = await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
+                        .Title("Selecione uma das opções:")
+                        .AddChoices(models.Select(x => x.Split("\\").Last())));
+
+                        jsonString = File.ReadAllText(Path.Combine(BasePath, modelSelected));
+
+                        videoProject = System.Text.Json.JsonSerializer.Deserialize<VideoProject>(jsonString) ?? new VideoProject();
+
+                        AnsiConsole.MarkupLine($"[green]Modelo {videoProject.TemplateName} carregado com sucesso![/]");
+
+                        ExecutableModel ExecutableModel = new ExecutableModel(videoProject);
+
+                        List<IContentSource> ContentSources = [
+                            new AiContentSource(),
+                            new G1RssContentSource(),
+                            new GoogleImageContentSource()
+                        ];
+
+                        AnsiConsole.MarkupLine($"escolha uma das fontes de conteúdo para a [green]Origem[/]:");
+
+                        await SelectContentSource(ContentSources);
+
+                        ExecutableModel.AddContentSource();
+
+                        break;
+    
                 }
             }
+        }
+
+        public static async Task<object?> SelectContentSource(List<IContentSource> ContentSources)
+        {
+            string modelSelected = await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
+                        .Title("Selecione uma das opções:")
+                        .AddChoices(ContentSources.Select(x => x.Name)));
+
+            Type RequestType = ContentSources.First(x => x.Name == modelSelected).RequestType;
+
+            return await GetRequestForContentSource(RequestType);
+        }
+
+        public static async Task<object?> GetRequestForContentSource(Type RequestType)
+        {
+            object? request = Activator.CreateInstance(RequestType);
+
+            switch (RequestType.Name)
+            {
+                case "AiContentSourceRequest":
+                    string prompt = await AnsiConsole.Console.AskAsync<string>("Digite o prompt para a IA(use /*nomeVariavel*/ para variáveis): ");
+                    request = new AiContentSourceRequest(prompt, null);
+                    break;
+
+                case "GoogleImageContentRequest":
+                    string query = await AnsiConsole.Console.AskAsync<string>("Digite a query para o Google Images: ");
+                    request = new GoogleImageContentRequest(query);
+                    break;
+
+                case "RssContentSourceRequest":
+                    string url = await AnsiConsole.Console.AskAsync<string>("Digite a URL do RSS: ");
+                    request = new RssContentSourceRequest(url);
+                    break;
+            }
+
+            return request;
         }
     }
 }
