@@ -5,10 +5,11 @@ namespace Domain.Entities
 {
     public class ExecutableModel
     {
-        public List<Content> Origin { get; set; } = new List<Content>();
         public VideoProject Project { get;}
-        public Dictionary<ContentSourceKey, IContentSource?> ContentSources
-            = new Dictionary<ContentSourceKey, IContentSource?>();
+        public string Name { get; set; } = string.Empty;
+
+        public Dictionary<ContentSourceKey, (IContentSource? ContentSource,object Request,object Response)> ContentSources { get; set; }
+            = new Dictionary<ContentSourceKey, (IContentSource? ContentSource, object Request, object Response)>();
 
         public ExecutableModel(VideoProject VideoProject)
         {
@@ -17,21 +18,19 @@ namespace Domain.Entities
 
         public void AddContentSource(
            ContentSourceKey key,
-           IContentSource contentSource)
+           (IContentSource? ContentSource, object Request, object Response) contentSource)
         {
             if (!key.IsValid())
                 throw new ArgumentException(
                     "ContentSourceKey inválido.",
                     nameof(key));
 
-            ArgumentNullException.ThrowIfNull(contentSource);
-
             ContentSources[key] = contentSource;
         }
 
         public bool TryGetContentSource(
             ContentSourceKey key,
-            out IContentSource? contentSource)
+            out (IContentSource? ContentSource, object Request, object Response) contentSource)
         {
             return ContentSources.TryGetValue(
                 key,

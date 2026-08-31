@@ -13,7 +13,7 @@ namespace Domain.ValueObjects
     {
         public bool IsValid()
         {
-            if (GlobalId == null && SceneId == null)
+            if (GlobalId == null && SceneId == null) 
                 return false;
 
             if (LayerId != null && SceneId == null)
@@ -21,5 +21,18 @@ namespace Domain.ValueObjects
 
             return true;
         }
+        /*
+        public static bool TryCreateNewInstance(int?[] Ids, out ContentSourceKey ContentSourceKey)
+        {
+            for (int i = 0; i < 3; i++) {
+                if (Ids[i] < 0)
+                {
+                    ContentSourceKey = new ContentSourceKey(null,null,null);
+                    return false;
+                }
+
+            }
+        }
+        */
     }
 }

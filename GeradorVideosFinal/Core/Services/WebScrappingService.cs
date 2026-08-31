@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using HtmlAgilityPack;
-using Core.Domain.Entities;
 using Domain.Entities;
 using PexelsDotNetSDK.Api;
 using PexelsDotNetSDK.Models;
@@ -65,7 +64,7 @@ namespace Services
 
                 return images;
             }
-
+        /*
             public async Task<News> Scrap(string Link)
             {
                 try
@@ -97,7 +96,6 @@ namespace Services
                 }
 
             }
-
             public async Task<List<News>> GetNews(string Url)
             {
                 string htmlContent = await GetPage(Url);
@@ -119,7 +117,7 @@ namespace Services
                 return AllNews;
             }
 
-
+        */
             public async Task<List<string>> GetUrlImages(string request, bool Context)
             {
                 List<string> Urlimages = new List<string>();

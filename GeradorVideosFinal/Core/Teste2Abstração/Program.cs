@@ -1,31 +1,17 @@
-﻿using Application.interfaces;
-using Services;
-using Services.Factories;
-using Spectre.Console;
-using System;
-using System.IO;
-using Domain.Entities;
-using NAudio.Utils;
-using Microsoft.EntityFrameworkCore.Query.Internal;
-using Microsoft.EntityFrameworkCore.Storage;
-using System.Reflection.Emit;
+﻿using Domain.Entities;
 using Domain.Interfaces;
+using Domain.ValueObjects;
 using Services.ContentSources.AiContentSource;
 using Services.ContentSources.GoogleImageContent;
 using Services.ContentSources.RssContentSource;
-using ElevenLabs;
-using Domain.ValueObjects;
+using Spectre.Console;
+using Spectre.Console.Rendering;
+using System.Reflection;
 
 namespace Presentation
 {
-
     class Program
     {
-        static IAiService aiService = new AiService();
-        static IAudioService audioService = new AudioService();
-        static VideoService videoService = new VideoService();
-
-        static WebScrappingService webScrappingService = new WebScrappingService();
 
         static string[] sceneTypes = { "Image", "Image&Audio", "Video" };
         static string[] layerTypes = { "Image", "Image&Audio", "Audio", "Video" };
@@ -38,25 +24,29 @@ namespace Presentation
 
         static async Task Main(string[] args)
         {
+
+            Spectre.Console.AnsiConsole.Console.Write(new FigletText("Video").Color(Color.Yellow));
+            Spectre.Console.AnsiConsole.Console.Write(new FigletText("Generator").Color(Color.Yellow));
             string BasePath = "C:\\Users\\Administrador\\Desktop\\Modelos";
 
             AnsiConsole.MarkupLine("[yellow]Este é seu [/] [bold yellow]Gerador de vídeos[/]");
-            string option = await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
-            .Title("Selecione uma das opções:")
-            .AddChoices(new[] { "Renderizar um modelo estático(ME)", "Criar um modelo estático(MD)", "Sair" }));
 
             bool sair = false;
 
             while (!sair)
             {
-                VideoProject videoProject = new VideoProject();
+                string option = await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
+                .Title("Selecione uma das opções:")
+                .AddChoices(new[] { "Criar um modelo estático(ME)", "Criar um modelo dinâmico(MD)", "Sair" }));
+
+                VideoProject? videoProject = new VideoProject();
                 var jsonString = "";
                 switch (option)
                 {
                     case "Sair":
                         sair = true;
                         break;
-
+                    /*
                     case "Renderizar um modelo estático":
                         string[] models = Directory.GetFiles(BasePath, "*.json");
 
@@ -77,11 +67,11 @@ namespace Presentation
 
                         AnsiConsole.MarkupLine("Prompt do áudio principal: " + (videoProject.Prompt != null ? videoProject.Prompt : "Nenhum"));
 
-                        if (videoProject.Prompt.Contains("/*") & videoProject.Prompt.Contains("*/"))
+                        if (videoProject.Prompt.Contains("/*") & videoProject.Prompt.Contains(""))
                         {
-                            string varName = videoProject.Prompt.Split("/*")[1].Split("*/")[0];
+                            string varName = videoProject.Prompt.Split("/*")[1].Split("")[0];
                             string userInput = await AnsiConsole.Console.AskAsync<string>($"Digite o valor para a variável [bold]{varName}[/]: ");
-                            videoProject.Prompt = videoProject.Prompt.Replace($"/*{varName}*/", userInput);
+                            videoProject.Prompt = videoProject.Prompt.Replace($"/*{varName}", userInput);
                         }
 
                         string videoContent = await aiService.SendPrompt(videoProject.Prompt);
@@ -119,7 +109,7 @@ namespace Presentation
 
                                     if (double.TryParse(scene.Duration, out double duration) == true)
                                     {
-                                        sceneAudioDuration = duration + 200 /*acréscimo para garantir que não vai cortar nada*/;
+                                        sceneAudioDuration = duration + 200 /*acréscimo para garantir que não vai cortar nada;
                                     }
 
                                     await videoService.ImageAsync(imageBytes, sceneAudioDuration, Path.Combine(BasePath, $"scene{scene.Id}.mp4"));
@@ -350,6 +340,7 @@ namespace Presentation
                         await videoService.AddMainAudioAsync(Path.Combine(BasePath, $"videoFinal.mp4"), Path.Combine(BasePath, "tempAudio.wav"), Path.Combine(BasePath, $"videoFinalWithAudio.mp4"));
 
                         break;
+                */
 
                     case "Criar um modelo estático(ME)":
                         videoProject.Id = Guid.NewGuid();
@@ -450,19 +441,25 @@ namespace Presentation
                         break;
 
                     case "Criar um modelo dinâmico(MD)":
-                        models = Directory.GetFiles(BasePath, "*.json");
+                        string[] models = Directory.GetFiles(BasePath, "*.json");
 
-                        modelSelected = await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
-                        .Title("Selecione uma das opções:")
-                        .AddChoices(models.Select(x => x.Split("\\").Last())));
+                        string modelSelected = await SelectOption(models.Select(x => x.Split("\\").Last()).ToList());
 
                         jsonString = File.ReadAllText(Path.Combine(BasePath, modelSelected));
 
-                        videoProject = System.Text.Json.JsonSerializer.Deserialize<VideoProject>(jsonString) ?? new VideoProject();
+                        videoProject = System.Text.Json.JsonSerializer.Deserialize<VideoProject>(jsonString);
+
+                        if (videoProject == null)
+                        {
+                            AnsiConsole.MarkupLine($"[red]Erro ao carregar o modelo {modelSelected}[/]");
+                            continue;
+                        }
 
                         AnsiConsole.MarkupLine($"[green]Modelo {videoProject.TemplateName} carregado com sucesso![/]");
 
                         ExecutableModel ExecutableModel = new ExecutableModel(videoProject);
+
+                        ExecutableModel.Name = await AnsiConsole.Console.AskAsync<string>("Digite um nome para seu [yellow]modelo dinâmico[/]: ");
 
                         List<IContentSource> ContentSources = [
                             new AiContentSource(),
@@ -472,30 +469,103 @@ namespace Presentation
 
                         AnsiConsole.MarkupLine($"escolha uma das fontes de conteúdo para a [green]Origem[/]:");
 
-                        await SelectContentSource(ContentSources);
+                        (IContentSource ContentSource, object? Request, object? Response) SelectedContentSource = await SelectContentSource(ContentSources);
 
-                        ExecutableModel.AddContentSource();
+                        ExecutableModel.AddContentSource(new ContentSourceKey(0, 0, 0), SelectedContentSource);
+
+                        Text conteudo = new Text(
+                            string.Join("\n", SelectedContentSource.ContentSource.ContentType.GetProperties().Select(p => p.Name))
+                        ).Centered();
+
+                        IRenderable painel = new Panel(conteudo)
+                        {
+                            Header = new PanelHeader("Para usar o conteúdo da origem, siga o padrão /*origin.property*/, substitua propertie por uma das propriedades abaixo:"), 
+                            Border = BoxBorder.Rounded                   
+                        };
+
+                        AnsiConsole.Console.Write(painel);
+
+                        if (ExecutableModel.Project.hasMainAudio())
+                        {
+                            AnsiConsole.MarkupLine($"escolha uma das fontes de conteúdo para o [green]áudio principal[/]:");
+                            ExecutableModel.AddContentSource(new ContentSourceKey(1, 0, 0), await SelectContentSource(ContentSources));
+                        }
+
+                        int count = 0;
+                        
+                        foreach (Scene scene in ExecutableModel.Project.Scenes)
+                        {
+                            count++;
+                            if (scene == null)
+                            {
+                                AnsiConsole.MarkupLine($"Cena {count} está registrada, mas não existe");
+                                continue;
+                            }
+                            AnsiConsole.MarkupLine($"[yellow]Cena {count}.[/]");
+                            AnsiConsole.MarkupLine($"[yellow]Tipo {count}.[/]");
+                            ExecutableModel.AddContentSource(new ContentSourceKey(null, scene.Id, null), await SelectContentSource(ContentSources));
+                            int countLayer = 0;
+                            foreach (Layer layer in scene.Layers)
+                            {
+                                if (layer == null)
+                                {
+                                    AnsiConsole.MarkupLine($"Camada {countLayer} está registrada, mas não existe");
+                                    continue;
+                                }
+                                AnsiConsole.MarkupLine($"[yellow]Camada {count}[/]");
+                                ExecutableModel.AddContentSource(new ContentSourceKey(null, scene.Id, layer.Id), await SelectContentSource(ContentSources));
+                            }
+                        }
+
+                        /*
+                            jsonString = System.Text.Json.JsonSerializer.Serialize(ExecutableModel, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                            File.WriteAllText(Path.Combine(BasePath, "Dinamicos", $"{ExecutableModel.Name}.json"), jsonString);
+                        */
+
+                        /*  O modelo dinâmico é salvo em uma pasta separada chamada "Dinamicos" para diferenciar dos modelos estáticos.*/
+                        /*  O código devia parar aqui, mas como a persistencia em JSON está ruim, vou continuar aqui a execução, depois separo.*/
+
+                        /*A PARTIR DAQUI COMECA A RENDERIZAR*/
+
+                        
+
+
+
 
                         break;
-    
                 }
             }
         }
 
-        public static async Task<object?> SelectContentSource(List<IContentSource> ContentSources)
+        public static async Task<string> SelectOption(List<string> options)
         {
-            string modelSelected = await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
+            return await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
                         .Title("Selecione uma das opções:")
-                        .AddChoices(ContentSources.Select(x => x.Name)));
+                        .AddChoices(options));
+        }
 
-            Type RequestType = ContentSources.First(x => x.Name == modelSelected).RequestType;
+        public static object? GetPropertyValue(object obj,Type type,string prop)
+        {
+            PropertyInfo? propriedade = type.GetProperty(prop);
 
-            return await GetRequestForContentSource(RequestType);
+            if (propriedade != null)
+                return propriedade.GetValue(obj);
+
+            return null;
+        }
+
+        public static async Task<(IContentSource ContentSource, object? Request, object? Response)> SelectContentSource(List<IContentSource> ContentSources)
+        {
+            string modelSelected = await SelectOption(ContentSources.Select(x => x.Name).ToList());
+
+            IContentSource ContentSourceSelected = ContentSources.First(x => x.Name == modelSelected);
+
+            return (ContentSourceSelected, await GetRequestForContentSource(ContentSourceSelected.RequestType), await GetResponseForContentSource(ContentSourceSelected.RequestType));
         }
 
         public static async Task<object?> GetRequestForContentSource(Type RequestType)
         {
-            object? request = Activator.CreateInstance(RequestType);
+            object? request = null;
 
             switch (RequestType.Name)
             {
@@ -516,6 +586,24 @@ namespace Presentation
             }
 
             return request;
+        }
+
+        public static async Task<object?> GetResponseForContentSource(Type RequestType)
+        {
+
+            switch (RequestType.Name)
+            {
+                case "AiContentSourceRequest":
+                    return new AiContentSourceResponse();
+
+                case "GoogleImageContentRequest":
+                    return new GoogleImageContentResponse();
+
+                case "RssContentSourceRequest":
+                    return new G1RssContentSourceResponse();
+            }
+
+            return null;
         }
     }
 }

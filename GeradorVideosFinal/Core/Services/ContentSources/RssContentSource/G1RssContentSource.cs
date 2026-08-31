@@ -20,7 +20,7 @@ namespace Services.ContentSources.RssContentSource
 
         public Type ContentType => typeof(Content);
 
-        public async Task<List<IContent>> getContent(RssContentSourceRequest request)
+        public async Task<List<IContent>> GetContent(RssContentSourceRequest request)
         {
             if(request is RssContentSourceRequest)
             {
@@ -35,22 +35,24 @@ namespace Services.ContentSources.RssContentSource
                 int count = 1;
                 foreach (var item in doc.Descendants("item"))
                 {
-                    string titulo = item.Element("title")?.Value ?? "";
+                    string title = item.Element("title")?.Value ?? "";
                     string link = item.Element("link")?.Value ?? "";
-                    string descricao = item.Element("description")?.Value ?? "";
+                    string description = item.Element("description")?.Value ?? "";
 
-                    descricao = System.Net.WebUtility.HtmlDecode(descricao);
+                    description = System.Net.WebUtility.HtmlDecode(description);
 
-                    contents.Add(new G1RssContentSourceResponse { Id = count, Title = titulo, result = descricao });
+                    contents.Add(new G1RssContentSourceResponse { Id = count, Title = title, Link = link, Description = description });
                     count++;
 
                 }
                 return contents;
             }
-            else
-            {
-                throw new ArgumentException("Invalid request type");
-            }
+            throw new ArgumentException("Invalid request type");
+        }
+
+        public Task<List<IContent>> GetContent(object request)
+        {
+            return GetContent((RssContentSourceRequest)request);
         }
     }
 }

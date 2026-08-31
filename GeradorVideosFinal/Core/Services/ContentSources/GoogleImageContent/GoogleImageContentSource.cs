@@ -11,33 +11,38 @@ using System.Threading.Tasks;
 
 namespace Services.ContentSources.GoogleImageContent
 {
-    public class GoogleImageContentSource : IContentSource
+    public class GoogleImageContentSource : IContentSource<GoogleImageContentRequest>
     {
         public string Name => "Google Images";
-        public async Task<List<Content>> getContent(object request)
+
+        public Type RequestType => typeof(GoogleImageContentRequest);
+
+        public Type ContentType => typeof(GoogleImageContentResponse);
+
+        public async Task<List<IContent>> GetContent(object request)
+        {           
+            return await GetContent((GoogleImageContentRequest)request);
+        }
+
+        public async Task<List<IContent>> GetContent(GoogleImageContentRequest request)
         {
-            if (request is GoogleImageContentRequest)
+            
+            GoogleImage googleImage = new GoogleImage();
+
+            List<string> urlsImages = await googleImage.Search(request.query);
+
+            List<IContent> Images = new List<IContent>();
+
+            int count = 0;
+
+            foreach (string url in urlsImages)
             {
-                GoogleImage googleImage = new GoogleImage();
-
-                List<string> urlsImages = await googleImage.Search((request as GoogleImageContentRequest).query);
-
-                List<Content> Images = new List<Content>();
-
-                int count = 0;
-
-                foreach (string url in urlsImages) { 
-                    Images.Add(new Content { Id = count, Title = "GoogleImageContentSourceResult", result = url });
-                    count++;
-                }
-
-                return Images;
-            }
-            else
-            {
-                throw new ArgumentException("Invalid request type");
+                Images.Add(new GoogleImageContentResponse() { Id = count, Title = "", Result=url});
+                count++;
             }
 
-        }        
+            return Images;
+
+        }
     }
 }

@@ -16,15 +16,18 @@ namespace Domain.Entities
         public Guid Id { get; set; }
 
         [JsonPropertyName("resolution")]
-        public string Resolution { get; set; } // 1: 9/16, 2: 16/9
+        public string Resolution { get; set; }
 
         [JsonPropertyName("audio")]
-        public bool AudioConfig { get; set; } // 1: Main audio on, 0: Off
+        public bool AudioConfig { get; set; }
 
         [JsonPropertyName("scenes")]
         public List<Scene> Scenes { get; set; } = new List<Scene>();
 
         [JsonPropertyName("Prompt")]
         public string Prompt { get; set; }
+
+        public bool hasMainAudio() => AudioConfig;
+        
     }
 }
