@@ -7,6 +7,8 @@ using Services.ContentSources.RssContentSource;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using Services;
 
 namespace Presentation
 {
@@ -25,8 +27,8 @@ namespace Presentation
         static async Task Main(string[] args)
         {
 
-            Spectre.Console.AnsiConsole.Console.Write(new FigletText("Video").Color(Color.Yellow));
-            Spectre.Console.AnsiConsole.Console.Write(new FigletText("Generator").Color(Color.Yellow));
+            Spectre.Console.AnsiConsole.Console.Write(new FigletText("Video").Color(Color.Yellow).Centered());
+            Spectre.Console.AnsiConsole.Console.Write(new FigletText("Generator").Color(Color.Yellow).Centered());
             string BasePath = "C:\\Users\\Administrador\\Desktop\\Modelos";
 
             AnsiConsole.MarkupLine("[yellow]Este é seu [/] [bold yellow]Gerador de vídeos[/]");
@@ -35,12 +37,12 @@ namespace Presentation
 
             while (!sair)
             {
-                string option = await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
-                .Title("Selecione uma das opções:")
-                .AddChoices(new[] { "Criar um modelo estático(ME)", "Criar um modelo dinâmico(MD)", "Sair" }));
+                string option = await SelectOption(new[] { "Criar um modelo estático(ME)", "Criar um modelo dinâmico(MD)", "Sair" });
 
                 VideoProject? videoProject = new VideoProject();
+
                 var jsonString = "";
+
                 switch (option)
                 {
                     case "Sair":
@@ -527,13 +529,890 @@ namespace Presentation
 
                         /*A PARTIR DAQUI COMECA A RENDERIZAR*/
 
-                        
+                        VideoService videoService = new VideoService();
+                        AudioService audioService = new AudioService();
+                        ImageService imageService = new ImageService();
 
+                        string dinamicosPath = Path.Combine(BasePath, "Dinamicos");
 
+                        Directory.CreateDirectory(dinamicosPath);
+
+                        string renderedVideoPath = await RenderDynamicModel(
+                            ExecutableModel,
+                            videoService,
+                            audioService,
+                            imageService,
+                            BasePath,
+                            dinamicosPath
+                        );
+
+                        AnsiConsole.MarkupLine(
+                            $"[green]Modelo dinâmico renderizado com sucesso![/]"
+                        );
+
+                        AnsiConsole.MarkupLine(
+                            $"[green]Vídeo salvo em:[/] {renderedVideoPath}"
+                        );
 
 
                         break;
                 }
+            }
+        }
+
+        private static async Task<string> RenderDynamicModel(
+    ExecutableModel executableModel,
+    VideoService videoService,
+    AudioService audioService,
+    ImageService imageService,
+    string basePath,
+    string dinamicosPath)
+        {
+            if (executableModel == null)
+                throw new ArgumentNullException(nameof(executableModel));
+
+            if (executableModel.Project == null)
+                throw new ArgumentException(
+                    "ExecutableModel não possui um VideoProject."
+                );
+
+            if (executableModel.ContentSources == null)
+                throw new ArgumentException(
+                    "O modelo dinâmico não possui ContentSources."
+                );
+
+            if (executableModel.Project.Scenes == null ||
+                executableModel.Project.Scenes.Count == 0)
+                throw new ArgumentException(
+                    "O modelo não possui cenas para renderizar."
+                );
+
+            /*
+             * Antes de renderizar qualquer coisa:
+             *
+             * 1. valida todas as ContentSourceKeys;
+             * 2. valida as sources;
+             * 3. executa as requests;
+             * 4. coloca o primeiro conteúdo retornado em Response.
+             *
+             * Isso transforma o ExecutableModel configurado pelo usuário
+             * em um modelo realmente executável.
+             */
+            await ResolveContentSources(executableModel);
+
+            List<string> scenePaths = new();
+
+            /*
+             * Áudio principal.
+             */
+            string? mainAudioPath = null;
+
+            if (executableModel.Project.hasMainAudio())
+            {
+                var mainAudioKey = new ContentSourceKey(1, 0, 0);
+
+                if (!executableModel.TryGetContentSource(
+                        mainAudioKey,
+                        out var mainAudioSource))
+                {
+                    throw new InvalidOperationException(
+                        "O modelo possui áudio principal, mas não possui ContentSourceKey (1,0,0)."
+                    );
+                }
+
+                string audioText = ResolveVariables(
+                    executableModel.Project.Prompt,
+                    executableModel,
+                    mainAudioKey
+                );
+
+                if (string.IsNullOrWhiteSpace(audioText))
+                {
+                    audioText = GetDefaultContentText(
+                        mainAudioSource.Response
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(audioText))
+                {
+                    throw new InvalidOperationException(
+                        "Não foi possível obter conteúdo para o áudio principal."
+                    );
+                }
+
+                mainAudioPath = Path.Combine(
+                    basePath,
+                    $"dynamic_main_{Guid.NewGuid():N}.wav"
+                );
+
+                await audioService.GenerateTemporaryAudio(
+                    audioText,
+                    mainAudioPath
+                );
+            }
+
+            /*
+             * Renderização das cenas.
+             */
+            foreach (Scene scene in executableModel.Project.Scenes)
+            {
+                if (scene == null)
+                    throw new InvalidOperationException(
+                        "Foi encontrada uma cena nula no modelo."
+                    );
+
+                var sceneKey = new ContentSourceKey(
+                    null,
+                    scene.Id,
+                    null
+                );
+
+                sceneKey.IsValid();
+
+                if (!executableModel.TryGetContentSource(
+                        sceneKey,
+                        out var sceneSource))
+                {
+                    throw new InvalidOperationException(
+                        $"A cena {scene.Id} não possui ContentSourceKey registrada."
+                    );
+                }
+
+                string scenePath = await RenderScene(
+                    executableModel,
+                    scene,
+                    sceneSource,
+                    videoService,
+                    audioService,
+                    imageService,
+                    basePath
+                );
+
+                scenePaths.Add(scenePath);
+            }
+
+            if (scenePaths.Count == 0)
+                throw new InvalidOperationException(
+                    "Nenhuma cena foi renderizada."
+                );
+
+            /*
+             * Junta todas as cenas.
+             */
+            string concatenatedPath = Path.Combine(
+                basePath,
+                $"dynamic_concat_{Guid.NewGuid():N}.mp4"
+            );
+
+            await videoService.ConcatVideosAsync(
+                scenePaths.ToArray(),
+                concatenatedPath
+            );
+
+            /*
+             * Adiciona o áudio principal, caso exista.
+             */
+            string finalPath = Path.Combine(
+                dinamicosPath,
+                $"{SanitizeFileName(executableModel.Name)}.mp4"
+            );
+
+            if (mainAudioPath != null)
+            {
+                await videoService.AddMainAudioAsync(
+                    concatenatedPath,
+                    mainAudioPath,
+                    finalPath
+                );
+            }
+            else
+            {
+                File.Copy(
+                    concatenatedPath,
+                    finalPath,
+                    true
+                );
+            }
+
+            if (!File.Exists(finalPath))
+                throw new InvalidOperationException(
+                    "A renderização terminou, mas o arquivo MP4 não foi criado."
+                );
+
+            return finalPath;
+        }
+
+        private static double GetSceneDuration(Scene scene)
+        {
+            if (scene.Duration == "Inner")
+            {
+                throw new InvalidOperationException(
+                    $"A cena {scene.Id} possui duração 'Inner', " +
+                    $"mas sua duração precisa ser conhecida para gerar uma imagem."
+                );
+            }
+
+            if (scene.Duration == "FromAudio")
+            {
+                throw new InvalidOperationException(
+                    $"A cena {scene.Id} possui duração 'FromAudio', " +
+                    $"mas uma imagem precisa de uma duração concreta."
+                );
+            }
+
+            if (!double.TryParse(
+                    scene.Duration,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out double duration))
+            {
+                throw new InvalidOperationException(
+                    $"Duração inválida na cena {scene.Id}: '{scene.Duration}'."
+                );
+            }
+
+            if (duration <= 0)
+                throw new InvalidOperationException(
+                    $"A duração da cena {scene.Id} deve ser maior que zero."
+                );
+
+            /*
+             * VideoService.ImageAsync recebe segundos.
+             * O modelo trabalha com milissegundos.
+             */
+            return duration / 1000.0;
+        }
+
+        private static double GetLayerDuration(
+            Layer layer,
+            Scene scene)
+        {
+            if (layer.Duration == "Inner")
+                throw new InvalidOperationException(
+                    $"A layer {layer.Id} usa 'Inner' e não possui duração explícita."
+                );
+
+            if (layer.Duration == "FromAudio")
+                throw new InvalidOperationException(
+                    $"A layer {layer.Id} usa 'FromAudio' e precisa de áudio "
+                    + "para determinar sua duração."
+                );
+
+            if (!double.TryParse(
+                    layer.Duration,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out double duration))
+            {
+                throw new InvalidOperationException(
+                    $"Duração inválida na layer {layer.Id}: '{layer.Duration}'."
+                );
+            }
+
+            if (duration <= 0)
+                throw new InvalidOperationException(
+                    $"A duração da layer {layer.Id} deve ser maior que zero."
+                );
+
+            return duration / 1000.0;
+        }
+
+        private static string GetDefaultContentText(object? response)
+        {
+            if (response == null)
+                return string.Empty;
+
+            Type type = response.GetType();
+
+            /*
+             * Ordem de preferência para as Responses existentes
+             * no projeto.
+             */
+            string[] properties =
+            {
+        "Result",
+        "Description",
+        "Title",
+        "Link"
+    };
+
+            foreach (string propertyName in properties)
+            {
+                object? value =
+                    GetPropertyValue(
+                        response,
+                        type,
+                        propertyName
+                    );
+
+                if (value == null)
+                    continue;
+
+                string? text = value.ToString();
+
+                if (!string.IsNullOrWhiteSpace(text))
+                    return text;
+            }
+
+            return string.Empty;
+        }
+
+        private static string SanitizeFileName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException(
+                    "O nome do modelo dinâmico não pode ser vazio."
+                );
+
+            foreach (char invalid in Path.GetInvalidFileNameChars())
+                name = name.Replace(invalid, '_');
+
+            return name;
+        }
+
+        private static double GetStartSeconds(string? start)
+        {
+            if (string.IsNullOrWhiteSpace(start))
+                throw new InvalidOperationException(
+                    "O Start da layer não pode ser nulo."
+                );
+
+            if (!double.TryParse(
+                    start,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out double value))
+            {
+                throw new InvalidOperationException(
+                    $"Start inválido: '{start}'."
+                );
+            }
+
+            if (value < 0)
+                throw new InvalidOperationException(
+                    "O Start da layer não pode ser negativo."
+                );
+
+            /*
+             * O modelo usa milissegundos.
+             * FFmpeg recebe segundos.
+             */
+            return value / 1000.0;
+        }
+
+
+        private static async Task<string> RenderScene(
+        ExecutableModel executableModel,
+        Scene scene,
+        (IContentSource? ContentSource,
+         object Request,
+         object Response) sceneSource,
+        VideoService videoService,
+        AudioService audioService,
+        ImageService imageService,
+        string basePath)
+        {
+            string resolvedPrompt = ResolveVariables(
+                scene.Prompt,
+                executableModel,
+                new ContentSourceKey(null, scene.Id, null)
+            );
+
+            string scenePath = Path.Combine(
+                basePath,
+                $"dynamic_scene_{scene.Id}_{Guid.NewGuid():N}.mp4"
+            );
+
+            switch (scene.Type)
+            {
+                case "Image":
+                    {
+                        if (string.IsNullOrWhiteSpace(resolvedPrompt))
+                        {
+                            resolvedPrompt = GetDefaultContentText(
+                                sceneSource.Response
+                            );
+                        }
+
+                        if (string.IsNullOrWhiteSpace(resolvedPrompt))
+                            throw new InvalidOperationException(
+                                $"A cena {scene.Id} não possui conteúdo para gerar a imagem."
+                            );
+
+                        byte[] imageBytes =
+                            await imageService.GenerateImage(resolvedPrompt);
+
+                        double duration = GetSceneDuration(scene);
+
+                        await videoService.ImageAsync(
+                            imageBytes,
+                            duration,
+                            scenePath
+                        );
+
+                        break;
+                    }
+
+                case "Image&Audio":
+                    {
+                        if (string.IsNullOrWhiteSpace(resolvedPrompt))
+                        {
+                            resolvedPrompt = GetDefaultContentText(
+                                sceneSource.Response
+                            );
+                        }
+
+                        if (string.IsNullOrWhiteSpace(resolvedPrompt))
+                            throw new InvalidOperationException(
+                                $"A cena {scene.Id} não possui conteúdo."
+                            );
+
+                        byte[] imageBytes =
+                            await imageService.GenerateImage(resolvedPrompt);
+
+                        string audioPath = Path.Combine(
+                            basePath,
+                            $"dynamic_scene_{scene.Id}_{Guid.NewGuid():N}.wav"
+                        );
+
+                        await audioService.GenerateTemporaryAudio(
+                            resolvedPrompt,
+                            audioPath
+                        );
+
+                        await videoService.ImageWithAudioAsync(
+                            imageBytes,
+                            audioPath,
+                            scenePath
+                        );
+
+                        break;
+                    }
+
+                case "Video":
+                    {
+                        string videoPath =
+                            GetDefaultContentText(sceneSource.Response);
+
+                        if (string.IsNullOrWhiteSpace(videoPath))
+                            throw new InvalidOperationException(
+                                $"A source da cena {scene.Id} não forneceu um caminho de vídeo."
+                            );
+
+                        if (!File.Exists(videoPath))
+                            throw new FileNotFoundException(
+                                $"O vídeo da cena {scene.Id} não existe.",
+                                videoPath
+                            );
+
+                        byte[] videoBytes =
+                            await File.ReadAllBytesAsync(videoPath);
+
+                        if (scene.Duration == "Inner")
+                        {
+                            await videoService.VideoWithoutDuration(
+                                videoBytes,
+                                scenePath
+                            );
+                        }
+                        else
+                        {
+                            double duration = GetSceneDuration(scene);
+
+                            await videoService.VideoWithDuration(
+                                videoBytes,
+                                duration,
+                                scenePath
+                            );
+                        }
+
+                        break;
+                    }
+
+                default:
+                    throw new InvalidOperationException(
+                        $"Tipo de cena '{scene.Type}' não suportado."
+                    );
+            }
+
+            /*
+             * Layers são processadas sequencialmente.
+             * O resultado de uma layer passa a ser a base da próxima.
+             */
+            string composedPath = scenePath;
+
+            int layerIndex = 0;
+
+            if (scene.Layers != null)
+            {
+                foreach (Layer layer in scene.Layers)
+                {
+                    if (layer == null)
+                        throw new InvalidOperationException(
+                            $"A cena {scene.Id} possui uma layer nula."
+                        );
+
+                    var layerKey = new ContentSourceKey(
+                        null,
+                        scene.Id,
+                        layer.Id
+                    );
+
+                    layerKey.IsValid();
+
+                    if (!executableModel.TryGetContentSource(
+                            layerKey,
+                            out var layerSource))
+                    {
+                        throw new InvalidOperationException(
+                            $"A layer {layer.Id} da cena {scene.Id} não possui ContentSourceKey."
+                        );
+                    }
+
+                    string layerPrompt = ResolveVariables(
+                        layer.Prompt,
+                        executableModel,
+                        layerKey
+                    );
+
+                    if (string.IsNullOrWhiteSpace(layerPrompt))
+                    {
+                        layerPrompt = GetDefaultContentText(
+                            layerSource.Response
+                        );
+                    }
+
+                    string layerPath = await RenderLayer(
+                        executableModel,
+                        scene,
+                        layer,
+                        layerSource,
+                        layerPrompt,
+                        videoService,
+                        audioService,
+                        imageService,
+                        basePath
+                    );
+
+                    if (layerPath == null)
+                        continue;
+
+                    string nextComposedPath = Path.Combine(
+                        basePath,
+                        $"dynamic_scene_{scene.Id}_composed_{layerIndex}_{Guid.NewGuid():N}.mp4"
+                    );
+
+                    double start = GetStartSeconds(layer.Start);
+
+                    if (scene.Duration == "Inner" ||
+                        scene.Duration == "FromAudio")
+                    {
+                        await videoService.OverlayLayerAsync(
+                            composedPath,
+                            layerPath,
+                            start,
+                            nextComposedPath
+                        );
+                    }
+                    else
+                    {
+                        double duration = GetSceneDuration(scene);
+
+                        await videoService.OverlayLayerWithDurationAsync(
+                            composedPath,
+                            layerPath,
+                            start,
+                            duration,
+                            nextComposedPath
+                        );
+                    }
+
+                    composedPath = nextComposedPath;
+
+                    layerIndex++;
+                }
+            }
+
+            return composedPath;
+        }
+
+        private static async Task<string?> RenderLayer(
+        ExecutableModel executableModel,
+        Scene scene,
+        Layer layer,
+        (IContentSource? ContentSource,
+         object Request,
+         object Response) layerSource,
+        string prompt,
+        VideoService videoService,
+        AudioService audioService,
+        ImageService imageService,
+        string basePath)
+        {
+            string layerPath = Path.Combine(
+                basePath,
+                $"dynamic_scene_{scene.Id}_layer_{layer.Id}_{Guid.NewGuid():N}.mp4"
+            );
+
+            switch (layer.Type)
+            {
+                case "Image":
+                    {
+                        if (string.IsNullOrWhiteSpace(prompt))
+                            throw new InvalidOperationException(
+                                $"A layer {layer.Id} da cena {scene.Id} não possui conteúdo."
+                            );
+
+                        byte[] imageBytes =
+                            await imageService.GenerateImage(prompt);
+
+                        double duration = GetLayerDuration(
+                            layer,
+                            scene
+                        );
+
+                        await videoService.ImageAsync(
+                            imageBytes,
+                            duration,
+                            layerPath
+                        );
+
+                        return layerPath;
+                    }
+
+                case "Image&Audio":
+                    {
+                        if (string.IsNullOrWhiteSpace(prompt))
+                            throw new InvalidOperationException(
+                                $"A layer {layer.Id} da cena {scene.Id} não possui conteúdo."
+                            );
+
+                        byte[] imageBytes =
+                            await imageService.GenerateImage(prompt);
+
+                        string audioPath = Path.Combine(
+                            basePath,
+                            $"dynamic_scene_{scene.Id}_layer_{layer.Id}_{Guid.NewGuid():N}.wav"
+                        );
+
+                        await audioService.GenerateTemporaryAudio(
+                            prompt,
+                            audioPath
+                        );
+
+                        await videoService.ImageWithAudioAsync(
+                            imageBytes,
+                            audioPath,
+                            layerPath
+                        );
+
+                        return layerPath;
+                    }
+
+                case "Video":
+                    {
+                        string videoPath =
+                            GetDefaultContentText(layerSource.Response);
+
+                        if (string.IsNullOrWhiteSpace(videoPath))
+                            throw new InvalidOperationException(
+                                $"A layer {layer.Id} não possui caminho de vídeo."
+                            );
+
+                        if (!File.Exists(videoPath))
+                            throw new FileNotFoundException(
+                                $"Vídeo da layer não encontrado.",
+                                videoPath
+                            );
+
+                        byte[] videoBytes =
+                            await File.ReadAllBytesAsync(videoPath);
+
+                        if (layer.Duration == "Inner")
+                        {
+                            await videoService.VideoWithoutDuration(
+                                videoBytes,
+                                layerPath
+                            );
+                        }
+                        else
+                        {
+                            double duration =
+                                GetLayerDuration(layer, scene);
+
+                            await videoService.VideoWithDuration(
+                                videoBytes,
+                                duration,
+                                layerPath
+                            );
+                        }
+
+                        return layerPath;
+                    }
+
+                case "Audio":
+                    /*
+                     * O VideoService atual não possui operação de áudio
+                     * como layer. Portanto não devemos fingir que uma
+                     * layer Audio foi renderizada.
+                     */
+                    throw new NotSupportedException(
+                        $"Layer Audio ainda não possui operação de composição " +
+                        $"na implementação atual do VideoService."
+                    );
+
+                default:
+                    throw new InvalidOperationException(
+                        $"Tipo de layer '{layer.Type}' não suportado."
+                    );
+            }
+        }
+
+        private static string ResolveVariables(
+        string? text,
+        ExecutableModel executableModel,
+        ContentSourceKey currentKey)
+        {
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+
+            currentKey.IsValid();
+
+            var regex = new Regex(
+                @"/\*(?<source>[A-Za-z_][A-Za-z0-9_]*)\.(?<property>[A-Za-z_][A-Za-z0-9_]*)\*/"
+            );
+
+            return regex.Replace(
+                text,
+                match =>
+                {
+                    string sourceName =
+                        match.Groups["source"].Value;
+
+                    string propertyName =
+                        match.Groups["property"].Value;
+
+                    /*
+                     * "origin" significa a ContentSource associada
+                     * ao contexto atual:
+                     *
+                     * cena -> (null, sceneId, null)
+                     * layer -> (null, sceneId, layerId)
+                     * origem global -> (0, 0, 0)
+                     */
+                    ContentSourceKey key;
+
+                    if (sourceName.Equals(
+                            "origin",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        key = currentKey;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            $"Origem de variável '{sourceName}' não reconhecida."
+                        );
+                    }
+
+                    key.IsValid();
+
+                    if (!executableModel.TryGetContentSource(
+                            key,
+                            out var source))
+                    {
+                        throw new InvalidOperationException(
+                            $"Não existe ContentSource para a chave " +
+                            $"({key.GlobalId},{key.SceneId},{key.LayerId})."
+                        );
+                    }
+
+                    if (source.Response == null)
+                    {
+                        throw new InvalidOperationException(
+                            $"A Response da ContentSource '{source.ContentSource?.Name}' é nula."
+                        );
+                    }
+
+                    object? value = GetPropertyValue(
+                        source.Response,
+                        source.Response.GetType(),
+                        propertyName
+                    );
+
+                    if (value == null)
+                    {
+                        throw new InvalidOperationException(
+                            $"A propriedade '{propertyName}' da Response " +
+                            $"'{source.Response.GetType().Name}' é nula ou não existe."
+                        );
+                    }
+
+                    return value.ToString() ?? string.Empty;
+                }
+            );
+        }
+
+        private static async Task ResolveContentSources(
+        ExecutableModel executableModel)
+        {
+            foreach (var entry in executableModel.ContentSources.ToList())
+            {
+                ContentSourceKey key = entry.Key;
+
+                key.IsValid();
+
+                var source = entry.Value.ContentSource;
+                var request = entry.Value.Request;
+
+                if (source == null)
+                {
+                    throw new InvalidOperationException(
+                        $"A ContentSourceKey ({key.GlobalId},{key.SceneId},{key.LayerId}) possui ContentSource nula."
+                    );
+                }
+
+                if (request == null)
+                {
+                    throw new InvalidOperationException(
+                        $"A ContentSourceKey ({key.GlobalId},{key.SceneId},{key.LayerId}) possui Request nula."
+                    );
+                }
+
+                if (!source.RequestType.IsInstanceOfType(request))
+                {
+                    throw new InvalidOperationException(
+                        $"Request inválida para a ContentSource '{source.Name}'. " +
+                        $"Esperado: {source.RequestType.Name}; " +
+                        $"recebido: {request.GetType().Name}."
+                    );
+                }
+
+                List<IContent>? contents =
+                    await source.GetContent(request);
+
+                if (contents == null || contents.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"A ContentSource '{source.Name}' não retornou conteúdo."
+                    );
+                }
+
+                IContent? response = contents.FirstOrDefault();
+
+                if (response == null)
+                {
+                    throw new InvalidOperationException(
+                        $"A ContentSource '{source.Name}' retornou um conteúdo nulo."
+                    );
+                }
+
+                executableModel.ContentSources[key] =
+                (
+                    source,
+                    request,
+                    response
+                );
             }
         }
 
@@ -544,14 +1423,30 @@ namespace Presentation
                         .AddChoices(options));
         }
 
-        public static object? GetPropertyValue(object obj,Type type,string prop)
+        public static async Task<string> SelectOption(string[] options)
         {
-            PropertyInfo? propriedade = type.GetProperty(prop);
+            return await AnsiConsole.Console.PromptAsync(new SelectionPrompt<string>()
+                        .Title("Selecione uma das opções:")
+                        .AddChoices(options));
+        }
 
-            if (propriedade != null)
-                return propriedade.GetValue(obj);
+        public static object? GetPropertyValue(
+        object obj,
+        Type type,
+        string prop)
+        {
+            if (obj == null)
+                return null;
 
-            return null;
+            PropertyInfo? property =
+                type.GetProperty(
+                    prop,
+                    BindingFlags.Public |
+                    BindingFlags.Instance |
+                    BindingFlags.IgnoreCase
+                );
+
+            return property?.GetValue(obj);
         }
 
         public static async Task<(IContentSource ContentSource, object? Request, object? Response)> SelectContentSource(List<IContentSource> ContentSources)
@@ -563,30 +1458,7 @@ namespace Presentation
             return (ContentSourceSelected, await GetRequestForContentSource(ContentSourceSelected.RequestType), await GetResponseForContentSource(ContentSourceSelected.RequestType));
         }
 
-        public static async Task<object?> GetRequestForContentSource(Type RequestType)
-        {
-            object? request = null;
-
-            switch (RequestType.Name)
-            {
-                case "AiContentSourceRequest":
-                    string prompt = await AnsiConsole.Console.AskAsync<string>("Digite o prompt para a IA(use /*nomeVariavel*/ para variáveis): ");
-                    request = new AiContentSourceRequest(prompt, null);
-                    break;
-
-                case "GoogleImageContentRequest":
-                    string query = await AnsiConsole.Console.AskAsync<string>("Digite a query para o Google Images: ");
-                    request = new GoogleImageContentRequest(query);
-                    break;
-
-                case "RssContentSourceRequest":
-                    string url = await AnsiConsole.Console.AskAsync<string>("Digite a URL do RSS: ");
-                    request = new RssContentSourceRequest(url);
-                    break;
-            }
-
-            return request;
-        }
+        public static async Task<object?> GetRequestForContentSource(Type RequestType) => Activator.CreateInstance(RequestType);
 
         public static async Task<object?> GetResponseForContentSource(Type RequestType)
         {
